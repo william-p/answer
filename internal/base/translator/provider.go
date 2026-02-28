@@ -66,8 +66,8 @@ func NewTranslator(c *I18n) (tr i18n.Translator, err error) {
 		if file.IsDir() {
 			continue
 		}
-		// ignore non-YAML file
-		if filepath.Ext(file.Name()) != ".yaml" && file.Name() != "i18n.yaml" {
+		// ignore non-YAML file and the i18n metadata file
+		if filepath.Ext(file.Name()) != ".yaml" || file.Name() == "i18n.yaml" {
 			continue
 		}
 		log.Debugf("try to read file: %s", file.Name())
@@ -101,10 +101,30 @@ func NewTranslator(c *I18n) (tr i18n.Translator, err error) {
 
 		// add translator use backend translation
 		if err = myTran.AddTranslator(content, file.Name()); err != nil {
-			log.Debugf("add translator failed: %s %s", file.Name(), err)
 			reportTranslatorFormatError(file.Name(), buf)
+			// The default language is mandatory: fail immediately so the
+			// operator sees a clear startup error instead of a runtime panic.
+			defaultLangFile := string(i18n.DefaultLanguage) + ".yaml"
+			if file.Name() == defaultLangFile {
+				return nil, fmt.Errorf("failed to load default language %s from %s: %s",
+					i18n.DefaultLanguage, filepath.Join(c.BundleDir, file.Name()), err)
+			}
+			log.Debugf("add translator failed: %s %s", file.Name(), err)
 			continue
 		}
+	}
+
+	// Verify the default language was successfully loaded. Without it every
+	// call to Tr/TrWithData would panic on a nil Localizer dereference.
+	// We use Dump() instead of Tr() because Tr() itself would panic when
+	// the language is missing (nil Localizer in pacman). Dump() safely
+	// returns "null" JSON when the language was never registered.
+	dumpBytes, _ := myTran.GlobalTrans.Dump(i18n.DefaultLanguage)
+	if len(dumpBytes) == 0 || string(dumpBytes) == "null" {
+		return nil, fmt.Errorf(
+			"critical: default language %q was not loaded from %s; "+
+				"ensure the file %s.yaml exists and is valid",
+			i18n.DefaultLanguage, c.BundleDir, i18n.DefaultLanguage)
 	}
 	GlobalTrans = myTran.GlobalTrans
 
