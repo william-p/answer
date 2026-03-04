@@ -167,29 +167,34 @@ func (qr *questionRepo) UpdateQuestionStatusWithOutUpdateTime(ctx context.Contex
 	return nil
 }
 
-func (qr *questionRepo) DeletePermanentlyQuestions(ctx context.Context) (err error) {
-	// get all deleted question ids
-	ids := make([]string, 0)
-	err = qr.data.DB.Context(ctx).Select("id").Table(new(entity.Question).TableName()).
-		Where("status = ?", entity.QuestionStatusDeleted).Find(&ids)
+func (qr *questionRepo) DeletePermanentlyQuestions(ctx context.Context) (deletedQuestions []*entity.Question, err error) {
+	// get all deleted questions (id + user_id)
+	deletedQuestions = make([]*entity.Question, 0)
+	err = qr.data.DB.Context(ctx).Select("id, user_id").Table(new(entity.Question).TableName()).
+		Where("status = ?", entity.QuestionStatusDeleted).Find(&deletedQuestions)
 	if err != nil {
-		return errors.InternalServer(reason.DatabaseError).WithError(err).WithStack()
+		return nil, errors.InternalServer(reason.DatabaseError).WithError(err).WithStack()
 	}
-	if len(ids) == 0 {
-		return nil
+	if len(deletedQuestions) == 0 {
+		return nil, nil
+	}
+
+	ids := make([]string, 0, len(deletedQuestions))
+	for _, q := range deletedQuestions {
+		ids = append(ids, q.ID)
 	}
 
 	// delete all revisions permanently
 	_, err = qr.data.DB.Context(ctx).In("object_id", ids).Delete(&entity.Revision{})
 	if err != nil {
-		return errors.InternalServer(reason.DatabaseError).WithError(err).WithStack()
+		return nil, errors.InternalServer(reason.DatabaseError).WithError(err).WithStack()
 	}
 
 	_, err = qr.data.DB.Context(ctx).Where("status = ?", entity.QuestionStatusDeleted).Delete(&entity.Question{})
 	if err != nil {
-		return errors.InternalServer(reason.DatabaseError).WithError(err).WithStack()
+		return nil, errors.InternalServer(reason.DatabaseError).WithError(err).WithStack()
 	}
-	return nil
+	return deletedQuestions, nil
 }
 
 func (qr *questionRepo) RecoverQuestion(ctx context.Context, questionID string) (err error) {

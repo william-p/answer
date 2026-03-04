@@ -51,7 +51,7 @@ type AnswerRepo interface {
 	GetAnswerCount(ctx context.Context) (count int64, err error)
 	RemoveAllUserAnswer(ctx context.Context, userID string) (err error)
 	SumVotesByQuestionID(ctx context.Context, questionID string) (float64, error)
-	DeletePermanentlyAnswers(ctx context.Context) (err error)
+	DeletePermanentlyAnswers(ctx context.Context) (deletedAnswers []*entity.Answer, err error)
 }
 
 // AnswerCommon user service

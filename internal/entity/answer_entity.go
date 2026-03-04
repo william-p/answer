@@ -38,6 +38,12 @@ var AdminAnswerSearchStatus = map[string]int{
 	"pending":   AnswerStatusPending,
 }
 
+var AdminAnswerSearchStatusIntToString = map[int]string{
+	AnswerStatusAvailable: "available",
+	AnswerStatusDeleted:   "deleted",
+	AnswerStatusPending:   "pending",
+}
+
 // Answer answer
 type Answer struct {
 	ID             string    `xorm:"not null pk autoincr BIGINT(20) id"`

@@ -529,27 +529,32 @@ func (ar *answerRepo) updateSearch(ctx context.Context, answerID string) (err er
 	return
 }
 
-func (ar *answerRepo) DeletePermanentlyAnswers(ctx context.Context) error {
-	// get all deleted answers ids
-	ids := make([]string, 0)
-	err := ar.data.DB.Context(ctx).Select("id").Table(new(entity.Answer).TableName()).
-		Where("status = ?", entity.AnswerStatusDeleted).Find(&ids)
+func (ar *answerRepo) DeletePermanentlyAnswers(ctx context.Context) (deletedAnswers []*entity.Answer, err error) {
+	// get all deleted answers (id + user_id + question_id)
+	deletedAnswers = make([]*entity.Answer, 0)
+	err = ar.data.DB.Context(ctx).Select("id, user_id, question_id").Table(new(entity.Answer).TableName()).
+		Where("status = ?", entity.AnswerStatusDeleted).Find(&deletedAnswers)
 	if err != nil {
-		return errors.InternalServer(reason.DatabaseError).WithError(err).WithStack()
+		return nil, errors.InternalServer(reason.DatabaseError).WithError(err).WithStack()
 	}
-	if len(ids) == 0 {
-		return nil
+	if len(deletedAnswers) == 0 {
+		return nil, nil
+	}
+
+	ids := make([]string, 0, len(deletedAnswers))
+	for _, a := range deletedAnswers {
+		ids = append(ids, a.ID)
 	}
 
 	// delete all revisions permanently
 	_, err = ar.data.DB.Context(ctx).In("object_id", ids).Delete(&entity.Revision{})
 	if err != nil {
-		return errors.InternalServer(reason.DatabaseError).WithError(err).WithStack()
+		return nil, errors.InternalServer(reason.DatabaseError).WithError(err).WithStack()
 	}
 
 	_, err = ar.data.DB.Context(ctx).Where("status = ?", entity.AnswerStatusDeleted).Delete(&entity.Answer{})
 	if err != nil {
-		return errors.InternalServer(reason.DatabaseError).WithError(err).WithStack()
+		return nil, errors.InternalServer(reason.DatabaseError).WithError(err).WithStack()
 	}
-	return nil
+	return deletedAnswers, nil
 }
