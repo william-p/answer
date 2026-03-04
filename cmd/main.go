@@ -30,6 +30,7 @@ import (
 	"github.com/apache/answer/internal/base/cron"
 	"github.com/apache/answer/internal/base/path"
 	"github.com/apache/answer/internal/schema"
+	"github.com/apache/answer/internal/service/webhook"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/segmentfault/pacman"
@@ -94,7 +95,7 @@ func runApp() {
 	}
 }
 
-func newApplication(serverConf *conf.Server, server *gin.Engine, manager *cron.ScheduledTaskManager) *pacman.Application {
+func newApplication(serverConf *conf.Server, server *gin.Engine, manager *cron.ScheduledTaskManager, _ *webhook.WebhookEventHandler) *pacman.Application {
 	manager.Run()
 	return pacman.NewApp(
 		pacman.WithName(Name),

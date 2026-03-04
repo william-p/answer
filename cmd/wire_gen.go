@@ -70,6 +70,7 @@ import (
 	"github.com/apache/answer/internal/repo/user"
 	"github.com/apache/answer/internal/repo/user_external_login"
 	"github.com/apache/answer/internal/repo/user_notification_config"
+	"github.com/apache/answer/internal/repo/webhook"
 	"github.com/apache/answer/internal/router"
 	"github.com/apache/answer/internal/service/action"
 	activity2 "github.com/apache/answer/internal/service/activity"
@@ -119,6 +120,7 @@ import (
 	"github.com/apache/answer/internal/service/user_common"
 	user_external_login2 "github.com/apache/answer/internal/service/user_external_login"
 	user_notification_config2 "github.com/apache/answer/internal/service/user_notification_config"
+	webhook2 "github.com/apache/answer/internal/service/webhook"
 	"github.com/segmentfault/pacman"
 	"github.com/segmentfault/pacman/log"
 )
@@ -289,7 +291,10 @@ func initApplication(debug bool, serverConf *conf.Server, dbConf *data.Database,
 	aiController := controller.NewAIController(searchService, siteInfoCommonService, tagCommonService, questionCommon, commentRepo, userCommon, answerRepo, mcpController, aiConversationService, featureToggleService)
 	aiConversationController := controller.NewAIConversationController(aiConversationService, featureToggleService)
 	aiConversationAdminController := controller_admin.NewAIConversationAdminController(aiConversationService, featureToggleService)
-	answerAPIRouter := router.NewAnswerAPIRouter(langController, userController, commentController, reportController, voteController, tagController, followController, collectionController, questionController, answerController, searchController, revisionController, rankController, userAdminController, reasonController, themeController, siteInfoController, controllerSiteInfoController, notificationController, dashboardController, uploadController, activityController, roleController, pluginController, permissionController, userPluginController, reviewController, metaController, badgeController, controller_adminBadgeController, adminAPIKeyController, aiController, aiConversationController, aiConversationAdminController, mcpController)
+	webhookRepo := webhook.NewWebhookRepo(dataData)
+	webhookAdminService := webhook2.NewWebhookAdminService(webhookRepo)
+	webhookController := controller_admin.NewWebhookController(webhookAdminService)
+	answerAPIRouter := router.NewAnswerAPIRouter(langController, userController, commentController, reportController, voteController, tagController, followController, collectionController, questionController, answerController, searchController, revisionController, rankController, userAdminController, reasonController, themeController, siteInfoController, controllerSiteInfoController, notificationController, dashboardController, uploadController, activityController, roleController, pluginController, permissionController, userPluginController, reviewController, metaController, badgeController, controller_adminBadgeController, adminAPIKeyController, aiController, aiConversationController, aiConversationAdminController, mcpController, webhookController)
 	swaggerRouter := router.NewSwaggerRouter(swaggerConf)
 	uiRouter := router.NewUIRouter(controllerSiteInfoController, siteInfoCommonService)
 	authUserMiddleware := middleware.NewAuthUserMiddleware(authService, siteInfoCommonService)
@@ -308,7 +313,9 @@ func initApplication(debug bool, serverConf *conf.Server, dbConf *data.Database,
 	pluginAPIRouter := router.NewPluginAPIRouter(connectorController, userCenterController, captchaController, embedController, renderController, sidebarController)
 	ginEngine := server.NewHTTPServer(debug, staticRouter, answerAPIRouter, swaggerRouter, uiRouter, authUserMiddleware, avatarMiddleware, shortIDMiddleware, templateRouter, pluginAPIRouter, uiConf)
 	scheduledTaskManager := cron.NewScheduledTaskManager(siteInfoCommonService, questionService, fileRecordService, userAdminService, serviceConf)
-	application := newApplication(serverConf, ginEngine, scheduledTaskManager)
+	webhookService := webhook2.NewWebhookService()
+	webhookEventHandler := webhook2.NewWebhookEventHandler(webhookRepo, webhookService, eventqueueService)
+	application := newApplication(serverConf, ginEngine, scheduledTaskManager, webhookEventHandler)
 	return application, func() {
 		cleanup2()
 		cleanup()
