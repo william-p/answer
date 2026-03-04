@@ -2790,6 +2790,209 @@
                 }
             }
         },
+        "/answer/admin/api/webhook": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "get a webhook by id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AdminWebhook"
+                ],
+                "summary": "get a webhook by id",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "webhook id",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handler.RespBody"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/schema.GetWebhookResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "update a webhook",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AdminWebhook"
+                ],
+                "summary": "update a webhook",
+                "parameters": [
+                    {
+                        "description": "UpdateWebhookReq",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/schema.UpdateWebhookReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.RespBody"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "add a webhook",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AdminWebhook"
+                ],
+                "summary": "add a webhook",
+                "parameters": [
+                    {
+                        "description": "AddWebhookReq",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/schema.AddWebhookReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.RespBody"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "delete a webhook",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AdminWebhook"
+                ],
+                "summary": "delete a webhook",
+                "parameters": [
+                    {
+                        "description": "DeleteWebhookReq",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/schema.DeleteWebhookReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.RespBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/answer/admin/api/webhooks": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "list all webhooks",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AdminWebhook"
+                ],
+                "summary": "list all webhooks",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handler.RespBody"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/schema.GetWebhookResp"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/answer/api/v1/activity/timeline": {
             "get": {
                 "description": "get object timeline",
@@ -9057,6 +9260,50 @@
                 }
             }
         },
+        "schema.AddWebhookReq": {
+            "type": "object",
+            "required": [
+                "events",
+                "method",
+                "name",
+                "url"
+            ],
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "events": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "header_name": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "header_value": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "method": {
+                    "type": "string",
+                    "enum": [
+                        "POST",
+                        "PUT"
+                    ]
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 500
+                }
+            }
+        },
         "schema.AdminUpdateAnswerStatusReq": {
             "type": "object",
             "required": [
@@ -9434,6 +9681,17 @@
                         "questions",
                         "answers"
                     ]
+                }
+            }
+        },
+        "schema.DeleteWebhookReq": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
                 }
             }
         },
@@ -10787,6 +11045,44 @@
                 },
                 "vote_type": {
                     "description": "vote type",
+                    "type": "string"
+                }
+            }
+        },
+        "schema.GetWebhookResp": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "integer"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "header_name": {
+                    "type": "string"
+                },
+                "header_value": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "integer"
+                },
+                "url": {
                     "type": "string"
                 }
             }
@@ -13037,6 +13333,54 @@
                 },
                 "user_id": {
                     "type": "string"
+                }
+            }
+        },
+        "schema.UpdateWebhookReq": {
+            "type": "object",
+            "required": [
+                "events",
+                "id",
+                "method",
+                "name",
+                "url"
+            ],
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "events": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "header_name": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "header_value": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "id": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string",
+                    "enum": [
+                        "POST",
+                        "PUT"
+                    ]
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 500
                 }
             }
         },

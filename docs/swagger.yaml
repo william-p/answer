@@ -1,20 +1,3 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
-
 basePath: /
 definitions:
   constant.NotificationChannelKey:
@@ -437,6 +420,38 @@ definitions:
         description: users info line by line
         type: string
     type: object
+  schema.AddWebhookReq:
+    properties:
+      enabled:
+        type: boolean
+      events:
+        items:
+          type: string
+        minItems: 1
+        type: array
+      header_name:
+        maxLength: 100
+        type: string
+      header_value:
+        maxLength: 200
+        type: string
+      method:
+        enum:
+        - POST
+        - PUT
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      url:
+        maxLength: 500
+        type: string
+    required:
+    - events
+    - method
+    - name
+    - url
+    type: object
   schema.AdminUpdateAnswerStatusReq:
     properties:
       answer_id:
@@ -691,6 +706,13 @@ definitions:
         type: string
     required:
     - type
+    type: object
+  schema.DeleteWebhookReq:
+    properties:
+      id:
+        type: string
+    required:
+    - id
     type: object
   schema.EditUserProfileReq:
     properties:
@@ -1637,6 +1659,31 @@ definitions:
         type: string
       vote_type:
         description: vote type
+        type: string
+    type: object
+  schema.GetWebhookResp:
+    properties:
+      created_at:
+        type: integer
+      enabled:
+        type: boolean
+      events:
+        items:
+          type: string
+        type: array
+      header_name:
+        type: string
+      header_value:
+        type: string
+      id:
+        type: string
+      method:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: integer
+      url:
         type: string
     type: object
   schema.LoadingAction:
@@ -3182,6 +3229,41 @@ definitions:
     required:
     - status
     - user_id
+    type: object
+  schema.UpdateWebhookReq:
+    properties:
+      enabled:
+        type: boolean
+      events:
+        items:
+          type: string
+        minItems: 1
+        type: array
+      header_name:
+        maxLength: 100
+        type: string
+      header_value:
+        maxLength: 200
+        type: string
+      id:
+        type: string
+      method:
+        enum:
+        - POST
+        - PUT
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      url:
+        maxLength: 500
+        type: string
+    required:
+    - events
+    - id
+    - method
+    - name
+    - url
     type: object
   schema.UserBasicInfo:
     properties:
@@ -5120,6 +5202,127 @@ paths:
       summary: get user page
       tags:
       - admin
+  /answer/admin/api/webhook:
+    delete:
+      consumes:
+      - application/json
+      description: delete a webhook
+      parameters:
+      - description: DeleteWebhookReq
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/schema.DeleteWebhookReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.RespBody'
+      security:
+      - ApiKeyAuth: []
+      summary: delete a webhook
+      tags:
+      - AdminWebhook
+    get:
+      consumes:
+      - application/json
+      description: get a webhook by id
+      parameters:
+      - description: webhook id
+        in: query
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.RespBody'
+            - properties:
+                data:
+                  $ref: '#/definitions/schema.GetWebhookResp'
+              type: object
+      security:
+      - ApiKeyAuth: []
+      summary: get a webhook by id
+      tags:
+      - AdminWebhook
+    post:
+      consumes:
+      - application/json
+      description: add a webhook
+      parameters:
+      - description: AddWebhookReq
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/schema.AddWebhookReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.RespBody'
+      security:
+      - ApiKeyAuth: []
+      summary: add a webhook
+      tags:
+      - AdminWebhook
+    put:
+      consumes:
+      - application/json
+      description: update a webhook
+      parameters:
+      - description: UpdateWebhookReq
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/schema.UpdateWebhookReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.RespBody'
+      security:
+      - ApiKeyAuth: []
+      summary: update a webhook
+      tags:
+      - AdminWebhook
+  /answer/admin/api/webhooks:
+    get:
+      consumes:
+      - application/json
+      description: list all webhooks
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.RespBody'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/schema.GetWebhookResp'
+                  type: array
+              type: object
+      security:
+      - ApiKeyAuth: []
+      summary: list all webhooks
+      tags:
+      - AdminWebhook
   /answer/api/v1/activity/timeline:
     get:
       description: get object timeline
