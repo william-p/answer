@@ -62,6 +62,7 @@ type AnswerAPIRouter struct {
 	aiConversationController      *controller.AIConversationController
 	aiConversationAdminController *controller_admin.AIConversationAdminController
 	mcpController                 *controller.MCPController
+	webhookController             *controller_admin.WebhookController
 }
 
 func NewAnswerAPIRouter(
@@ -100,6 +101,7 @@ func NewAnswerAPIRouter(
 	aiConversationController *controller.AIConversationController,
 	aiConversationAdminController *controller_admin.AIConversationAdminController,
 	mcpController *controller.MCPController,
+	webhookController *controller_admin.WebhookController,
 ) *AnswerAPIRouter {
 	return &AnswerAPIRouter{
 		langController:                langController,
@@ -137,6 +139,7 @@ func NewAnswerAPIRouter(
 		aiConversationController:      aiConversationController,
 		aiConversationAdminController: aiConversationAdminController,
 		mcpController:                 mcpController,
+		webhookController:             webhookController,
 	}
 }
 
@@ -436,4 +439,11 @@ func (a *AnswerAPIRouter) RegisterAnswerAdminAPIRouter(r *gin.RouterGroup) {
 	r.GET("/ai/conversation/page", a.aiConversationAdminController.GetConversationList)
 	r.GET("/ai/conversation", a.aiConversationAdminController.GetConversationDetail)
 	r.DELETE("/ai/conversation", a.aiConversationAdminController.DeleteConversation)
+
+	// webhook
+	r.GET("/webhooks", a.webhookController.ListWebhooks)
+	r.GET("/webhook", a.webhookController.GetWebhook)
+	r.POST("/webhook", a.webhookController.AddWebhook)
+	r.PUT("/webhook", a.webhookController.UpdateWebhook)
+	r.DELETE("/webhook", a.webhookController.DeleteWebhook)
 }
