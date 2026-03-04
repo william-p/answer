@@ -40,6 +40,11 @@ type EventMsg struct {
 	CommentID     string
 	CommentUserID string
 
+	FromStatus      int
+	ToStatus        int
+	FromStatusLabel string
+	ToStatusLabel   string
+
 	ExtraInfo map[string]string
 }
 
@@ -74,6 +79,16 @@ func (e *EventMsg) AID(answerID, userID string) *EventMsg {
 func (e *EventMsg) CID(comment, userID string) *EventMsg {
 	e.CommentID = comment
 	e.CommentUserID = userID
+	return e
+}
+
+// StatusChange sets the status transition fields on the event.
+// statusLabels maps int status codes to string labels.
+func (e *EventMsg) StatusChange(from, to int, statusLabels map[int]string) *EventMsg {
+	e.FromStatus = from
+	e.ToStatus = to
+	e.FromStatusLabel = statusLabels[from]
+	e.ToStatusLabel = statusLabels[to]
 	return e
 }
 

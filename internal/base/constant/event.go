@@ -32,14 +32,20 @@ const (
 
 // event action
 const (
-	eventCreate = "create"
-	eventUpdate = "update"
-	eventDelete = "delete"
-	eventVote   = "vote"
-	eventAccept = "accept" // only question have the accept event
-	eventShare  = "share"  // the object share link has been clicked
-	eventFlag   = "flag"
-	eventReact  = "react"
+	eventCreate   = "create"
+	eventUpdate   = "update"
+	eventDelete   = "delete"
+	eventStatus   = "status"
+	eventVote     = "vote"
+	eventAccept   = "accept"
+	eventUnaccept = "unaccept"
+	eventShare    = "share" // the object share link has been clicked
+	eventFlag     = "flag"
+	eventReact    = "react"
+	eventHide     = "hide"
+	eventShow     = "show"
+	eventPin      = "pin"
+	eventUnpin    = "unpin"
 )
 
 const (
@@ -48,22 +54,29 @@ const (
 )
 
 const (
-	EventQuestionCreate EventType = eventQuestion + "." + eventCreate
-	EventQuestionUpdate EventType = eventQuestion + "." + eventUpdate
-	EventQuestionDelete EventType = eventQuestion + "." + eventDelete
-	EventQuestionVote   EventType = eventQuestion + "." + eventVote
-	EventQuestionAccept EventType = eventQuestion + "." + eventAccept
-	EventQuestionFlag   EventType = eventQuestion + "." + eventFlag
-	EventQuestionReact  EventType = eventQuestion + "." + eventReact
+	EventQuestionCreate  EventType = eventQuestion + "." + eventCreate
+	EventQuestionUpdate  EventType = eventQuestion + "." + eventUpdate
+	EventQuestionStatus  EventType = eventQuestion + "." + eventStatus
+	EventQuestionDelete  EventType = eventQuestion + "." + eventDelete
+	EventQuestionVote    EventType = eventQuestion + "." + eventVote
+	EventQuestionFlag    EventType = eventQuestion + "." + eventFlag
+	EventQuestionReact   EventType = eventQuestion + "." + eventReact
+	EventQuestionHide    EventType = eventQuestion + "." + eventHide
+	EventQuestionShow    EventType = eventQuestion + "." + eventShow
+	EventQuestionPin     EventType = eventQuestion + "." + eventPin
+	EventQuestionUnpin   EventType = eventQuestion + "." + eventUnpin
 )
 
 const (
-	EventAnswerCreate EventType = eventAnswer + "." + eventCreate
-	EventAnswerUpdate EventType = eventAnswer + "." + eventUpdate
-	EventAnswerDelete EventType = eventAnswer + "." + eventDelete
-	EventAnswerVote   EventType = eventAnswer + "." + eventVote
-	EventAnswerFlag   EventType = eventAnswer + "." + eventFlag
-	EventAnswerReact  EventType = eventAnswer + "." + eventReact
+	EventAnswerCreate   EventType = eventAnswer + "." + eventCreate
+	EventAnswerUpdate   EventType = eventAnswer + "." + eventUpdate
+	EventAnswerStatus   EventType = eventAnswer + "." + eventStatus
+	EventAnswerDelete   EventType = eventAnswer + "." + eventDelete
+	EventAnswerVote     EventType = eventAnswer + "." + eventVote
+	EventAnswerAccept   EventType = eventAnswer + "." + eventAccept
+	EventAnswerUnaccept EventType = eventAnswer + "." + eventUnaccept
+	EventAnswerFlag     EventType = eventAnswer + "." + eventFlag
+	EventAnswerReact    EventType = eventAnswer + "." + eventReact
 )
 
 const (
