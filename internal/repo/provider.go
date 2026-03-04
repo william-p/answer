@@ -55,6 +55,7 @@ import (
 	"github.com/apache/answer/internal/repo/user"
 	"github.com/apache/answer/internal/repo/user_external_login"
 	"github.com/apache/answer/internal/repo/user_notification_config"
+	"github.com/apache/answer/internal/repo/webhook"
 	"github.com/google/wire"
 )
 
@@ -113,4 +114,5 @@ var ProviderSetRepo = wire.NewSet(
 	file_record.NewFileRecordRepo,
 	api_key.NewAPIKeyRepo,
 	ai_conversation.NewAIConversationRepo,
+	webhook.NewWebhookRepo,
 )

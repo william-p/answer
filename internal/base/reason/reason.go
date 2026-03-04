@@ -118,6 +118,7 @@ const (
 	UserStatusSuspendedUntil         = "error.user.status_suspended_until"
 	UserStatusDeleted                = "error.user.status_deleted"
 	ErrFeatureDisabled               = "error.feature.disabled"
+	WebhookInvalidEventType          = "error.webhook.invalid_event_type"
 )
 
 // user external login reasons

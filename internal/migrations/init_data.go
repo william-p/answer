@@ -79,6 +79,7 @@ var (
 		&entity.APIKey{},
 		&entity.AIConversation{},
 		&entity.AIConversationRecord{},
+		&entity.Webhook{},
 	}
 
 	roles = []*entity.Role{
