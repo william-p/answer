@@ -458,6 +458,10 @@ const routes: RouteNode[] = [
             page: 'pages/Admin/Apikeys',
           },
           {
+            path: 'webhooks',
+            page: 'pages/Admin/Webhooks',
+          },
+          {
             path: 'mcp',
             page: 'pages/Admin/Mcp',
           },
