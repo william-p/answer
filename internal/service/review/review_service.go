@@ -29,6 +29,7 @@ import (
 	"github.com/apache/answer/internal/schema"
 	answercommon "github.com/apache/answer/internal/service/answer_common"
 	commentcommon "github.com/apache/answer/internal/service/comment_common"
+	"github.com/apache/answer/internal/service/eventqueue"
 	"github.com/apache/answer/internal/service/noticequeue"
 	"github.com/apache/answer/internal/service/object_info"
 	questioncommon "github.com/apache/answer/internal/service/question_common"
@@ -70,6 +71,7 @@ type ReviewService struct {
 	notificationQueueService         noticequeue.Service
 	siteInfoService                  siteinfo_common.SiteInfoCommonService
 	commentCommonRepo                commentcommon.CommentCommonRepo
+	eventQueueService                eventqueue.Service
 }
 
 // NewReviewService new review service
@@ -87,6 +89,7 @@ func NewReviewService(
 	notificationQueueService noticequeue.Service,
 	siteInfoService siteinfo_common.SiteInfoCommonService,
 	commentCommonRepo commentcommon.CommentCommonRepo,
+	eventQueueService eventqueue.Service,
 ) *ReviewService {
 	return &ReviewService{
 		reviewRepo:                       reviewRepo,
@@ -102,6 +105,7 @@ func NewReviewService(
 		notificationQueueService:         notificationQueueService,
 		siteInfoService:                  siteInfoService,
 		commentCommonRepo:                commentCommonRepo,
+		eventQueueService:                eventQueueService,
 	}
 }
 
@@ -251,7 +255,7 @@ func (cs *ReviewService) UpdateReview(ctx context.Context, req *schema.UpdateRev
 		return nil
 	}
 
-	if err = cs.updateObjectStatus(ctx, review, req.IsApprove()); err != nil {
+	if err = cs.updateObjectStatus(ctx, review, req.IsApprove(), req.UserID); err != nil {
 		return err
 	}
 
@@ -264,7 +268,7 @@ func (cs *ReviewService) UpdateReview(ctx context.Context, req *schema.UpdateRev
 }
 
 // update object status
-func (cs *ReviewService) updateObjectStatus(ctx context.Context, review *entity.Review, isApprove bool) (err error) {
+func (cs *ReviewService) updateObjectStatus(ctx context.Context, review *entity.Review, isApprove bool, reviewerUserID string) (err error) {
 	objectType := constant.ObjectTypeNumberMapping[review.ObjectType]
 	switch objectType {
 	case constant.QuestionObjectType:
@@ -275,6 +279,7 @@ func (cs *ReviewService) updateObjectStatus(ctx context.Context, review *entity.
 		if !exist {
 			return errors.BadRequest(reason.ObjectNotFound)
 		}
+		oldStatus := questionInfo.Status
 		if isApprove {
 			questionInfo.Status = entity.QuestionStatusAvailable
 		} else {
@@ -283,6 +288,9 @@ func (cs *ReviewService) updateObjectStatus(ctx context.Context, review *entity.
 		if err := cs.questionRepo.UpdateQuestionStatus(ctx, questionInfo.ID, questionInfo.Status); err != nil {
 			return err
 		}
+		cs.eventQueueService.Send(ctx, schema.NewEvent(constant.EventQuestionStatus, reviewerUserID).TID(questionInfo.ID).
+			QID(questionInfo.ID, questionInfo.UserID).
+			StatusChange(oldStatus, questionInfo.Status, entity.AdminQuestionSearchStatusIntToString))
 		if isApprove {
 			tags, err := cs.tagCommon.GetObjectEntityTag(ctx, questionInfo.ID)
 			if err != nil {
@@ -308,6 +316,7 @@ func (cs *ReviewService) updateObjectStatus(ctx context.Context, review *entity.
 		if !exist {
 			return errors.BadRequest(reason.ObjectNotFound)
 		}
+		oldStatus := answerInfo.Status
 		if isApprove {
 			answerInfo.Status = entity.AnswerStatusAvailable
 		} else {
@@ -323,6 +332,11 @@ func (cs *ReviewService) updateObjectStatus(ctx context.Context, review *entity.
 		if !exist {
 			return errors.BadRequest(reason.ObjectNotFound)
 		}
+		statusEvent := schema.NewEvent(constant.EventAnswerStatus, reviewerUserID).TID(answerInfo.ID).
+			AID(answerInfo.ID, answerInfo.UserID).
+			QID(questionInfo.ID, questionInfo.UserID).
+			StatusChange(oldStatus, answerInfo.Status, entity.AdminAnswerSearchStatusIntToString)
+		cs.eventQueueService.Send(ctx, statusEvent)
 		if isApprove {
 			cs.notificationAnswerTheQuestion(ctx, questionInfo.UserID, questionInfo.ID, answerInfo.ID,
 				answerInfo.UserID, questionInfo.Title, answerInfo.OriginalText)

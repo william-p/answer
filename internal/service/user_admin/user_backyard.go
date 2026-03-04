@@ -34,6 +34,7 @@ import (
 	answercommon "github.com/apache/answer/internal/service/answer_common"
 	"github.com/apache/answer/internal/service/badge"
 	"github.com/apache/answer/internal/service/comment_common"
+	"github.com/apache/answer/internal/service/eventqueue"
 	"github.com/apache/answer/internal/service/export"
 	notificationcommon "github.com/apache/answer/internal/service/notification_common"
 	"github.com/apache/answer/internal/service/plugin_common"
@@ -87,6 +88,7 @@ type UserAdminService struct {
 	notificationRepo      notificationcommon.NotificationRepo
 	pluginUserConfigRepo  plugin_common.PluginUserConfigRepo
 	badgeAwardRepo        badge.BadgeAwardRepo
+	eventQueueService     eventqueue.Service
 }
 
 // NewUserAdminService new user admin service
@@ -105,6 +107,7 @@ func NewUserAdminService(
 	notificationRepo notificationcommon.NotificationRepo,
 	pluginUserConfigRepo plugin_common.PluginUserConfigRepo,
 	badgeAwardRepo badge.BadgeAwardRepo,
+	eventQueueService eventqueue.Service,
 ) *UserAdminService {
 	return &UserAdminService{
 		userRepo:              userRepo,
@@ -121,6 +124,7 @@ func NewUserAdminService(
 		notificationRepo:      notificationRepo,
 		pluginUserConfigRepo:  pluginUserConfigRepo,
 		badgeAwardRepo:        badgeAwardRepo,
+		eventQueueService:     eventQueueService,
 	}
 }
 
@@ -626,9 +630,25 @@ func (us *UserAdminService) DeletePermanently(ctx context.Context, req *schema.D
 	case constant.DeletePermanentlyUsers:
 		return us.userRepo.DeletePermanentlyUsers(ctx)
 	case constant.DeletePermanentlyQuestions:
-		return us.questionCommonRepo.DeletePermanentlyQuestions(ctx)
+		deletedQuestions, qErr := us.questionCommonRepo.DeletePermanentlyQuestions(ctx)
+		if qErr != nil {
+			return qErr
+		}
+		for _, q := range deletedQuestions {
+			us.eventQueueService.Send(ctx, schema.NewEvent(constant.EventQuestionDelete, req.UserID).
+				TID(q.ID).QID(q.ID, q.UserID))
+		}
+		return nil
 	case constant.DeletePermanentlyAnswers:
-		return us.answerCommonRepo.DeletePermanentlyAnswers(ctx)
+		deletedAnswers, aErr := us.answerCommonRepo.DeletePermanentlyAnswers(ctx)
+		if aErr != nil {
+			return aErr
+		}
+		for _, a := range deletedAnswers {
+			us.eventQueueService.Send(ctx, schema.NewEvent(constant.EventAnswerDelete, req.UserID).
+				TID(a.ID).AID(a.ID, a.UserID))
+		}
+		return nil
 	}
 
 	return errors.BadRequest(reason.RequestFormatError)

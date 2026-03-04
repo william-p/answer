@@ -164,6 +164,7 @@ func (qs *QuestionService) CloseQuestion(ctx context.Context, req *schema.CloseQ
 		return errors.BadRequest(reason.InvalidURLError)
 	}
 
+	oldStatus := questionInfo.Status
 	questionInfo.Status = entity.QuestionStatusClosed
 	err = qs.questionRepo.UpdateQuestionStatus(ctx, questionInfo.ID, questionInfo.Status)
 	if err != nil {
@@ -188,6 +189,9 @@ func (qs *QuestionService) CloseQuestion(ctx context.Context, req *schema.CloseQ
 		OriginalObjectID: questionInfo.ID,
 		ActivityTypeKey:  constant.ActQuestionClosed,
 	})
+	qs.eventQueueService.Send(ctx, schema.NewEvent(constant.EventQuestionStatus, req.UserID).TID(questionInfo.ID).
+		QID(questionInfo.ID, questionInfo.UserID).
+		StatusChange(oldStatus, entity.QuestionStatusClosed, entity.AdminQuestionSearchStatusIntToString))
 	return nil
 }
 
@@ -201,6 +205,7 @@ func (qs *QuestionService) ReopenQuestion(ctx context.Context, req *schema.Reope
 		return nil
 	}
 
+	oldStatus := questionInfo.Status
 	questionInfo.Status = entity.QuestionStatusAvailable
 	err = qs.questionRepo.UpdateQuestionStatus(ctx, questionInfo.ID, questionInfo.Status)
 	if err != nil {
@@ -213,6 +218,9 @@ func (qs *QuestionService) ReopenQuestion(ctx context.Context, req *schema.Reope
 		OriginalObjectID: questionInfo.ID,
 		ActivityTypeKey:  constant.ActQuestionReopened,
 	})
+	qs.eventQueueService.Send(ctx, schema.NewEvent(constant.EventQuestionStatus, req.UserID).TID(questionInfo.ID).
+		QID(questionInfo.ID, questionInfo.UserID).
+		StatusChange(oldStatus, entity.QuestionStatusAvailable, entity.AdminQuestionSearchStatusIntToString))
 	return nil
 }
 
@@ -542,6 +550,17 @@ func (qs *QuestionService) OperationQuestion(ctx context.Context, req *schema.Op
 		})
 	}
 
+	eventMap := map[string]constant.EventType{
+		schema.QuestionOperationHide:  constant.EventQuestionHide,
+		schema.QuestionOperationShow:  constant.EventQuestionShow,
+		schema.QuestionOperationPin:   constant.EventQuestionPin,
+		schema.QuestionOperationUnPin: constant.EventQuestionUnpin,
+	}
+	if eventType, hasEvent := eventMap[req.Operation]; hasEvent {
+		qs.eventQueueService.Send(ctx, schema.NewEvent(eventType, req.UserID).TID(questionInfo.ID).
+			QID(questionInfo.ID, questionInfo.UserID))
+	}
+
 	return nil
 }
 
@@ -585,6 +604,7 @@ func (qs *QuestionService) RemoveQuestion(ctx context.Context, req *schema.Remov
 		}
 	}
 
+	oldStatus := questionInfo.Status
 	questionInfo.Status = entity.QuestionStatusDeleted
 	err = qs.questionRepo.UpdateQuestionStatusWithOutUpdateTime(ctx, questionInfo)
 	if err != nil {
@@ -650,8 +670,9 @@ func (qs *QuestionService) RemoveQuestion(ctx context.Context, req *schema.Remov
 		OriginalObjectID: questionInfo.ID,
 		ActivityTypeKey:  constant.ActQuestionDeleted,
 	})
-	qs.eventQueueService.Send(ctx, schema.NewEvent(constant.EventQuestionDelete, req.UserID).TID(questionInfo.ID).
-		QID(questionInfo.ID, questionInfo.UserID))
+	qs.eventQueueService.Send(ctx, schema.NewEvent(constant.EventQuestionStatus, req.UserID).TID(questionInfo.ID).
+		QID(questionInfo.ID, questionInfo.UserID).
+		StatusChange(oldStatus, entity.QuestionStatusDeleted, entity.AdminQuestionSearchStatusIntToString))
 	return nil
 }
 
@@ -783,6 +804,9 @@ func (qs *QuestionService) RecoverQuestion(ctx context.Context, req *schema.Ques
 		OriginalObjectID: questionInfo.ID,
 		ActivityTypeKey:  constant.ActQuestionUndeleted,
 	})
+	qs.eventQueueService.Send(ctx, schema.NewEvent(constant.EventQuestionStatus, req.UserID).TID(questionInfo.ID).
+		QID(questionInfo.ID, questionInfo.UserID).
+		StatusChange(entity.QuestionStatusDeleted, entity.QuestionStatusAvailable, entity.AdminQuestionSearchStatusIntToString))
 	return nil
 }
 
@@ -1569,29 +1593,45 @@ func (qs *QuestionService) AdminSetQuestionStatus(ctx context.Context, req *sche
 	if !exist {
 		return errors.BadRequest(reason.QuestionNotFound)
 	}
+
+	// delete: delegate to RemoveQuestion (handles tags, links, activity, webhook event)
+	if setStatus == entity.QuestionStatusDeleted {
+		if err := qs.RemoveQuestion(ctx, &schema.RemoveQuestionReq{
+			ID:      questionInfo.ID,
+			UserID:  req.UserID,
+			IsAdmin: true,
+		}); err != nil {
+			return err
+		}
+
+		msg := &schema.NotificationMsg{}
+		msg.ObjectID = questionInfo.ID
+		msg.Type = schema.NotificationTypeInbox
+		msg.ReceiverUserID = questionInfo.UserID
+		msg.TriggerUserID = req.UserID
+		msg.ObjectType = constant.QuestionObjectType
+		msg.NotificationAction = constant.NotificationYourQuestionWasDeleted
+		qs.notificationQueueService.Send(ctx, msg)
+		return nil
+	}
+
+	// recover: delegate to RecoverQuestion (handles tags, links, activity, webhook event)
+	if setStatus == entity.QuestionStatusAvailable && questionInfo.Status == entity.QuestionStatusDeleted {
+		return qs.RecoverQuestion(ctx, &schema.QuestionRecoverReq{
+			QuestionID: questionInfo.ID,
+			UserID:     req.UserID,
+		})
+	}
+
+	// reopen / close: update status directly
+	oldStatus := questionInfo.Status
 	err = qs.questionRepo.UpdateQuestionStatus(ctx, questionInfo.ID, setStatus)
 	if err != nil {
 		return err
 	}
 
 	msg := &schema.NotificationMsg{}
-	if setStatus == entity.QuestionStatusDeleted {
-		// #2372 In order to simplify the process and complexity, as well as to consider if it is in-house,
-		// facing the problem of recovery.
-		// err = qs.answerActivityService.DeleteQuestion(ctx, questionInfo.ID, questionInfo.CreatedAt, questionInfo.VoteCount)
-		// if err != nil {
-		// 	log.Errorf("admin delete question then rank rollback error %s", err.Error())
-		// }
-		qs.activityQueueService.Send(ctx, &schema.ActivityMsg{
-			UserID:           questionInfo.UserID,
-			TriggerUserID:    converter.StringToInt64(req.UserID),
-			ObjectID:         questionInfo.ID,
-			OriginalObjectID: questionInfo.ID,
-			ActivityTypeKey:  constant.ActQuestionDeleted,
-		})
-		msg.NotificationAction = constant.NotificationYourQuestionWasDeleted
-	}
-	if setStatus == entity.QuestionStatusAvailable && questionInfo.Status == entity.QuestionStatusClosed {
+	if setStatus == entity.QuestionStatusAvailable && oldStatus == entity.QuestionStatusClosed {
 		qs.activityQueueService.Send(ctx, &schema.ActivityMsg{
 			UserID:           questionInfo.UserID,
 			TriggerUserID:    converter.StringToInt64(req.UserID),
@@ -1600,7 +1640,7 @@ func (qs *QuestionService) AdminSetQuestionStatus(ctx context.Context, req *sche
 			ActivityTypeKey:  constant.ActQuestionReopened,
 		})
 	}
-	if setStatus == entity.QuestionStatusClosed && questionInfo.Status != entity.QuestionStatusClosed {
+	if setStatus == entity.QuestionStatusClosed && oldStatus != entity.QuestionStatusClosed {
 		qs.activityQueueService.Send(ctx, &schema.ActivityMsg{
 			UserID:           questionInfo.UserID,
 			TriggerUserID:    converter.StringToInt64(req.UserID),
@@ -1610,16 +1650,10 @@ func (qs *QuestionService) AdminSetQuestionStatus(ctx context.Context, req *sche
 		})
 		msg.NotificationAction = constant.NotificationYourQuestionIsClosed
 	}
-	// recover
-	if setStatus == entity.QuestionStatusAvailable && questionInfo.Status == entity.QuestionStatusDeleted {
-		qs.activityQueueService.Send(ctx, &schema.ActivityMsg{
-			UserID:           req.UserID,
-			TriggerUserID:    converter.StringToInt64(req.UserID),
-			ObjectID:         questionInfo.ID,
-			OriginalObjectID: questionInfo.ID,
-			ActivityTypeKey:  constant.ActQuestionUndeleted,
-		})
-	}
+
+	qs.eventQueueService.Send(ctx, schema.NewEvent(constant.EventQuestionStatus, req.UserID).TID(questionInfo.ID).
+		QID(questionInfo.ID, questionInfo.UserID).
+		StatusChange(oldStatus, setStatus, entity.AdminQuestionSearchStatusIntToString))
 
 	if len(msg.NotificationAction) > 0 {
 		msg.ObjectID = questionInfo.ID

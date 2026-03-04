@@ -176,7 +176,8 @@ type AddUsersReq struct {
 
 // DeletePermanentlyReq delete permanently request
 type DeletePermanentlyReq struct {
-	Type string `validate:"required,oneof=users questions answers" json:"type"`
+	Type   string `validate:"required,oneof=users questions answers" json:"type"`
+	UserID string `json:"-"`
 }
 
 type AddUsersErrorData struct {

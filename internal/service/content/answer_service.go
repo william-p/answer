@@ -190,8 +190,13 @@ func (as *AnswerService) RemoveAnswer(ctx context.Context, req *schema.RemoveAns
 		OriginalObjectID: answerInfo.ID,
 		ActivityTypeKey:  constant.ActAnswerDeleted,
 	})
-	as.eventQueueService.Send(ctx, schema.NewEvent(constant.EventAnswerDelete, req.UserID).TID(answerInfo.ID).
-		AID(answerInfo.ID, answerInfo.UserID))
+	trashEvent := schema.NewEvent(constant.EventAnswerStatus, req.UserID).TID(answerInfo.ID).
+		AID(answerInfo.ID, answerInfo.UserID).
+		StatusChange(answerInfo.Status, entity.AnswerStatusDeleted, entity.AdminAnswerSearchStatusIntToString)
+	if questionInfo, _, qErr := as.questionRepo.GetQuestion(ctx, answerInfo.QuestionID); qErr == nil && questionInfo != nil {
+		trashEvent.QID(questionInfo.ID, questionInfo.UserID)
+	}
+	as.eventQueueService.Send(ctx, trashEvent)
 	return
 }
 
@@ -239,6 +244,13 @@ func (as *AnswerService) RecoverAnswer(ctx context.Context, req *schema.RecoverA
 		OriginalObjectID: answerInfo.ID,
 		ActivityTypeKey:  constant.ActAnswerUndeleted,
 	})
+	untrashEvent := schema.NewEvent(constant.EventAnswerStatus, req.UserID).TID(answerInfo.ID).
+		AID(answerInfo.ID, answerInfo.UserID).
+		StatusChange(entity.AnswerStatusDeleted, entity.AnswerStatusAvailable, entity.AdminAnswerSearchStatusIntToString)
+	if questionInfo, _, qErr := as.questionRepo.GetQuestion(ctx, answerInfo.QuestionID); qErr == nil && questionInfo != nil {
+		untrashEvent.QID(questionInfo.ID, questionInfo.UserID)
+	}
+	as.eventQueueService.Send(ctx, untrashEvent)
 	return nil
 }
 
@@ -331,7 +343,7 @@ func (as *AnswerService) Insert(ctx context.Context, req *schema.AnswerAddReq) (
 		ActivityTypeKey:  constant.ActQuestionAnswered,
 	})
 	as.eventQueueService.Send(ctx, schema.NewEvent(constant.EventAnswerCreate, req.UserID).TID(insertData.ID).
-		AID(insertData.ID, insertData.UserID))
+		QID(questionInfo.ID, questionInfo.UserID).AID(insertData.ID, insertData.UserID))
 	return insertData.ID, nil
 }
 
@@ -424,7 +436,7 @@ func (as *AnswerService) Update(ctx context.Context, req *schema.AnswerUpdateReq
 			RevisionID:       revisionID,
 		})
 		as.eventQueueService.Send(ctx, schema.NewEvent(constant.EventAnswerUpdate, req.UserID).TID(insertData.ID).
-			AID(insertData.ID, insertData.UserID))
+			QID(questionInfo.ID, questionInfo.UserID).AID(insertData.ID, insertData.UserID))
 	}
 
 	return insertData.ID, nil
@@ -484,8 +496,11 @@ func (as *AnswerService) AcceptAnswer(ctx context.Context, req *schema.AcceptAns
 	}
 
 	if acceptedAnswerInfo != nil {
-		as.eventQueueService.Send(ctx, schema.NewEvent(constant.EventQuestionAccept, req.UserID).TID(acceptedAnswerInfo.ID).
+		as.eventQueueService.Send(ctx, schema.NewEvent(constant.EventAnswerAccept, req.UserID).TID(acceptedAnswerInfo.ID).
 			QID(questionInfo.ID, questionInfo.UserID).AID(acceptedAnswerInfo.ID, acceptedAnswerInfo.UserID))
+	} else if oldAnswerInfo != nil {
+		as.eventQueueService.Send(ctx, schema.NewEvent(constant.EventAnswerUnaccept, req.UserID).TID(oldAnswerInfo.ID).
+			QID(questionInfo.ID, questionInfo.UserID).AID(oldAnswerInfo.ID, oldAnswerInfo.UserID))
 	}
 
 	as.updateAnswerRank(ctx, req.UserID, questionInfo, acceptedAnswerInfo, oldAnswerInfo)

@@ -258,6 +258,7 @@ func (uc *UserAdminController) DeletePermanently(ctx *gin.Context) {
 	if handler.BindAndCheck(ctx, req) {
 		return
 	}
+	req.UserID = middleware.GetLoginUserIDFromContext(ctx)
 
 	err := uc.userService.DeletePermanently(ctx, req)
 	handler.HandleResponse(ctx, err, nil)
